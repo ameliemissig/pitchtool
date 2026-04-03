@@ -1,0 +1,41 @@
+export async function POST(request) {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+
+  if (!apiKey || apiKey === "your-api-key-here") {
+    return Response.json(
+      { error: "Anthropic API key not configured. Add ANTHROPIC_API_KEY to your environment variables." },
+      { status: 500 }
+    );
+  }
+
+  try {
+    const { system, messages } = await request.json();
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1500,
+        system,
+        messages,
+      }),
+    });
+
+    if (!response.ok) {
+      const err = await response.text();
+      console.error("Anthropic API error:", err);
+      return Response.json({ error: "Failed to generate. Check your API key and credits." }, { status: 500 });
+    }
+
+    const data = await response.json();
+    return Response.json(data);
+  } catch (error) {
+    console.error("Generate error:", error);
+    return Response.json({ error: "Something went wrong. Please try again." }, { status: 500 });
+  }
+}
