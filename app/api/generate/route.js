@@ -19,7 +19,7 @@ export async function POST(request) {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 1500,
         system,
         messages,
@@ -27,15 +27,25 @@ export async function POST(request) {
     });
 
     if (!response.ok) {
-      const err = await response.text();
-      console.error("Anthropic API error:", err);
-      return Response.json({ error: "Failed to generate. Check your API key and credits." }, { status: 500 });
+      const errText = await response.text();
+      console.error("Anthropic API error:", response.status, errText);
+      // Try to parse the structured error from Anthropic so we can surface a useful message
+      let detail = errText;
+      try {
+        const errJson = JSON.parse(errText);
+        if (errJson?.error?.message) detail = errJson.error.message;
+        else if (errJson?.error?.type) detail = errJson.error.type;
+      } catch {}
+      return Response.json(
+        { error: `API ${response.status}: ${detail}` },
+        { status: 500 }
+      );
     }
 
     const data = await response.json();
     return Response.json(data);
   } catch (error) {
     console.error("Generate error:", error);
-    return Response.json({ error: "Something went wrong. Please try again." }, { status: 500 });
+    return Response.json({ error: `Server error: ${error.message}` }, { status: 500 });
   }
 }
